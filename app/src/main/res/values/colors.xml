@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#F5F5F5</color>
+    <color name="divider_color">#E0E0E0</color>
+    <color name="note_background">#FFFFFF</color>
+    <color name="note_title_color">#212121</color>
+    <color name="note_date_color">#757575</color>
+    <color name="primary_green">#4CAF50</color>
+    <color name="primary_dark_green">#388E3C</color>
+    <color name="accent_orange">#FF9800</color>
+</resources>

@@ -27,6 +27,7 @@ import android.provider.BaseColumns;
  */
 public final class NotePad {
     public static final String AUTHORITY = "com.google.provider.NotePad";
+    public static final String COLUMN_NAME_NOTE = "note";
 
     // This class cannot be instantiated
     private NotePad() {
@@ -150,5 +151,11 @@ public final class NotePad {
          * <P>Type: INTEGER (long from System.curentTimeMillis())</P>
          */
         public static final String COLUMN_NAME_MODIFICATION_DATE = "modified";
+        public static final String COLUMN_NAME_COLOR = "color";
+        public static final int COLOR_DEFAULT = 0;
+        public static final int COLOR_RED = 1;
+        public static final int COLOR_GREEN = 2;
+        public static final int COLOR_BLUE = 3;
+        public static final int COLOR_YELLOW = 4;
     }
 }

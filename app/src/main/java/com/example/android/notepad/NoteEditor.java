@@ -38,7 +38,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.SubMenu;
 import android.widget.EditText;
+import android.widget.Toast;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.widget.TextView;
+import android.graphics.Color;
 
 /**
  * This Activity handles "editing" a note, where editing is responding to
@@ -237,6 +243,43 @@ public class NoteEditor extends Activity {
         if (savedInstanceState != null) {
             mOriginalContent = savedInstanceState.getString(ORIGINAL_CONTENT);
         }
+
+        // 获取字数显示TextView
+        TextView wordCountView = (TextView) findViewById(id.word_count);
+
+// 获取编辑框
+        LinedEditText text = (LinedEditText) findViewById(R.id.note);
+
+// 添加文本变化监听器
+        text.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // 不需要实现
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // 不需要实现
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                // 计算字数并更新显示
+                int charCount = s.length();
+                wordCountView.setText("字数: " + charCount);
+
+                // 可以根据字数改变颜色
+                if (charCount == 0) {
+                    wordCountView.setBackgroundColor(Color.parseColor("#81C784")); // 绿色
+                } else if (charCount < 100) {
+                    wordCountView.setBackgroundColor(Color.parseColor("#4CAF50")); // 深绿
+                } else if (charCount < 500) {
+                    wordCountView.setBackgroundColor(Color.parseColor("#FF9800")); // 橙色
+                } else {
+                    wordCountView.setBackgroundColor(Color.parseColor("#F44336")); // 红色
+                }
+            }
+        });
     }
 
     /**
@@ -338,41 +381,24 @@ public class NoteEditor extends Activity {
     protected void onPause() {
         super.onPause();
 
-        /*
-         * Tests to see that the query operation didn't fail (see onCreate()). The Cursor object
-         * will exist, even if no records were returned, unless the query failed because of some
-         * exception or error.
-         *
-         */
         if (mCursor != null) {
-
             // Get the current note text.
             String text = mText.getText().toString();
             int length = text.length();
 
-            /*
-             * If the Activity is in the midst of finishing and there is no text in the current
-             * note, returns a result of CANCELED to the caller, and deletes the note. This is done
-             * even if the note was being edited, the assumption being that the user wanted to
-             * "clear out" (delete) the note.
-             */
             if (isFinishing() && (length == 0)) {
                 setResult(RESULT_CANCELED);
                 deleteNote();
-
-                /*
-                 * Writes the edits to the provider. The note has been edited if an existing note was
-                 * retrieved into the editor *or* if a new note was inserted. In the latter case,
-                 * onCreate() inserted a new empty note into the provider, and it is this new note
-                 * that is being edited.
-                 */
             } else if (mState == STATE_EDIT) {
-                // Creates a map to contain the new values for the columns
+                // 编辑状态：更新笔记
+                Log.d(TAG, "onPause: 自动保存编辑的笔记");
                 updateNote(text, null);
             } else if (mState == STATE_INSERT) {
+                // 插入状态：更新为新笔记
+                Log.d(TAG, "onPause: 自动保存新笔记");
                 updateNote(text, text);
                 mState = STATE_EDIT;
-          }
+            }
         }
     }
 
@@ -404,6 +430,16 @@ public class NoteEditor extends Activity {
             menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0,
                     new ComponentName(this, NoteEditor.class), null, intent, 0, null);
         }
+        super.onCreateOptionsMenu(menu);
+
+        // 添加颜色标记子菜单
+        SubMenu colorMenu = menu.addSubMenu("颜色标记");
+        colorMenu.add(0, NotePad.Notes.COLOR_RED, 0, "红色");
+        colorMenu.add(0, NotePad.Notes.COLOR_GREEN, 0, "绿色");
+        colorMenu.add(0, NotePad.Notes.COLOR_BLUE, 0, "蓝色");
+        colorMenu.add(0, NotePad.Notes.COLOR_YELLOW, 0, "黄色");
+        colorMenu.add(0, NotePad.Notes.COLOR_DEFAULT, 0, "默认");
+
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -433,18 +469,60 @@ public class NoteEditor extends Activity {
      */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle all of the possible menu actions.
-        int id = item.getItemId();
-        if(id== R.id.menu_save) {
-            String text = mText.getText().toString();
-            updateNote(text, null);
-            finish();
-        } else if (id == R.id.menu_delete) {
-            deleteNote();
-            finish();
-        } else if (id == R.id.menu_revert) {
-            cancelNote();
+        // 处理颜色标记选择
+        int colorId = item.getItemId();
+        if (colorId == NotePad.Notes.COLOR_RED || colorId == NotePad.Notes.COLOR_GREEN ||
+                colorId == NotePad.Notes.COLOR_BLUE || colorId == NotePad.Notes.COLOR_YELLOW ||
+                colorId == NotePad.Notes.COLOR_DEFAULT) {
+
+            // 更新数据库中的颜色值
+            ContentValues values = new ContentValues();
+            values.put(NotePad.Notes.COLUMN_NAME_COLOR, colorId);
+            getContentResolver().update(mUri, values, null, null);
+
+            Toast.makeText(this, "颜色标记已更新", Toast.LENGTH_SHORT).show();
+            return true;
         }
+
+        // 处理保存菜单项
+        // 处理保存菜单项
+        // 处理保存菜单项
+        if (item.getItemId() == R.id.menu_save) {
+            String text = mText.getText().toString();
+            if (text.trim().isEmpty()) {
+                Toast.makeText(this, "内容不能为空", Toast.LENGTH_SHORT).show();
+            } else {
+                updateNote(text, null);
+                // 保存完成后返回主界面
+                finish();
+            }
+            return true;
+        }
+
+        // 处理删除菜单项
+        if (item.getItemId() == R.id.menu_delete) {
+            // 添加确认对话框
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("删除笔记")
+                    .setMessage("确定要删除这个笔记吗？")
+                    .setPositiveButton("删除", new android.content.DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(android.content.DialogInterface dialog, int which) {
+                            deleteNote();
+                            finish();
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            return true;
+        }
+
+        // 处理恢复菜单项
+        if (item.getItemId() == R.id.menu_revert) {
+            cancelNote();
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -521,62 +599,51 @@ public class NoteEditor extends Activity {
      * @param title The new note title to use
      */
     private final void updateNote(String text, String title) {
-
         // Sets up a map to contain values to be updated in the provider.
         ContentValues values = new ContentValues();
         values.put(NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE, System.currentTimeMillis());
-
-        // If the action is to insert a new note, this creates an initial title for it.
-        if (mState == STATE_INSERT) {
-
-            // If no title was provided as an argument, create one from the note text.
-            if (title == null) {
-  
-                // Get the note's length
-                int length = text.length();
-
-                // Sets the title by getting a substring of the text that is 31 characters long
-                // or the number of characters in the note plus one, whichever is smaller.
-                title = text.substring(0, Math.min(30, length));
-  
-                // If the resulting length is more than 30 characters, chops off any
-                // trailing spaces
-                if (length > 30) {
-                    int lastSpace = title.lastIndexOf(' ');
-                    if (lastSpace > 0) {
-                        title = title.substring(0, lastSpace);
-                    }
-                }
-            }
-            // In the values map, sets the value of the title
-            values.put(NotePad.Notes.COLUMN_NAME_TITLE, title);
-        } else if (title != null) {
-            // In the values map, sets the value of the title
-            values.put(NotePad.Notes.COLUMN_NAME_TITLE, title);
-        }
-
-        // This puts the desired notes text into the map.
         values.put(NotePad.Notes.COLUMN_NAME_NOTE, text);
 
-        /*
-         * Updates the provider with the new values in the map. The ListView is updated
-         * automatically. The provider sets this up by setting the notification URI for
-         * query Cursor objects to the incoming URI. The content resolver is thus
-         * automatically notified when the Cursor for the URI changes, and the UI is
-         * updated.
-         * Note: This is being done on the UI thread. It will block the thread until the
-         * update completes. In a sample app, going against a simple provider based on a
-         * local database, the block will be momentary, but in a real app you should use
-         * android.content.AsyncQueryHandler or android.os.AsyncTask.
-         */
-        getContentResolver().update(
-                mUri,    // The URI for the record to update.
-                values,  // The map of column names and new values to apply to them.
-                null,    // No selection criteria are used, so no where columns are necessary.
-                null     // No where columns are used, so no where arguments are necessary.
-            );
+        // 获取当前标题
+        String currentTitle = "";
+        if (mCursor != null && mCursor.moveToFirst()) {
+            int colTitleIndex = mCursor.getColumnIndex(NotePad.Notes.COLUMN_NAME_TITLE);
+            if (colTitleIndex >= 0) {
+                currentTitle = mCursor.getString(colTitleIndex);
+            }
+        }
 
+        // 如果有传入新标题，使用新标题；否则保持原标题
+        if (title != null && !title.isEmpty()) {
+            values.put(NotePad.Notes.COLUMN_NAME_TITLE, title);
+        } else if (text != null && !text.isEmpty()) {
+            // 从文本中提取标题（前30个字符）
+            String newTitle = text.substring(0, Math.min(30, text.length()));
+            if (text.length() > 30) {
+                int lastSpace = newTitle.lastIndexOf(' ');
+                if (lastSpace > 0) {
+                    newTitle = newTitle.substring(0, lastSpace);
+                }
+            }
+            values.put(NotePad.Notes.COLUMN_NAME_TITLE, newTitle);
+        }
 
+        Log.d(TAG, "更新笔记: uri=" + mUri + ", 标题=" + values.getAsString(NotePad.Notes.COLUMN_NAME_TITLE));
+
+        int updatedRows = getContentResolver().update(
+                mUri,
+                values,
+                null,
+                null
+        );
+
+        Log.d(TAG, "更新了 " + updatedRows + " 行");
+
+        if (updatedRows > 0) {
+            Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "保存失败", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
